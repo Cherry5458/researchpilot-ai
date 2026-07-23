@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ResearchPilot AI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#0F172A; --surface:#1E293B; --card:#263146; --border:#334155;
+      --accent:#6366F1; --accent2:#818CF8; --green:#22C55E; --red:#EF4444;
+      --yellow:#F59E0B; --text:#F1F5F9; --muted:#94A3B8; --radius:14px;
+    }
+    body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:2rem 1rem 4rem; }
+
+    /* Header */
+    header { text-align:center; margin-bottom:1.8rem; }
+    .logo { font-size:2.6rem; font-weight:800; background:linear-gradient(135deg,var(--accent),var(--accent2)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .logo span { font-weight:300; }
+    header p { color:var(--muted); margin-top:.4rem; font-size:.95rem; }
+    .badge-row { display:flex; justify-content:center; gap:.5rem; margin-top:.8rem; flex-wrap:wrap; }
+    .badge { background:var(--surface); border:1px solid var(--border); color:var(--muted); font-size:.72rem; padding:3px 10px; border-radius:99px; }
+
+    /* Card */
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:2rem; width:100%; max-width:740px; }
+
+    /* Trending topics */
+    #suggestions-wrap { margin-bottom:1.2rem; }
+    #suggestions-wrap label { display:block; font-size:.8rem; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:.5rem; }
+    .topics-grid { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .topic-pill { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:.4rem .85rem; font-size:.8rem; color:var(--accent2); cursor:pointer; transition:border-color .2s,background .2s; }
+    .topic-pill:hover { border-color:var(--accent); background:rgba(99,102,241,.1); }
+    .topic-pill .domain { display:block; font-size:.68rem; color:var(--muted); margin-top:1px; }
+    .topics-loading { color:var(--muted); font-size:.82rem; }
+
+    /* Input */
+    label.main-label { display:block; font-size:.85rem; color:var(--muted); margin-bottom:.5rem; font-weight:500; text-transform:uppercase; letter-spacing:.03em; }
+    textarea { width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px; color:var(--text); font-size:1rem; padding:.9rem 1rem; resize:vertical; min-height:80px; outline:none; transition:border-color .2s; font-family:inherit; }
+    textarea:focus { border-color:var(--accent); }
+
+    /* Buttons */
+    .btn { display:flex; align-items:center; justify-content:center; gap:.5rem; width:100%; margin-top:1.2rem; padding:.85rem; border:none; border-radius:10px; background:linear-gradient(135deg,var(--accent),#4F46E5); color:#fff; font-size:1rem; font-weight:600; cursor:pointer; transition:opacity .2s,transform .1s; }
+    .btn:hover:not(:disabled) { opacity:.9; }
+    .btn:active:not(:disabled) { transform:scale(.98); }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .action-btns { display:flex; gap:.7rem; margin-top:1rem; flex-wrap:wrap; }
+    .btn-sm { flex:1; min-width:110px; padding:.65rem 1rem; border:none; border-radius:9px; font-size:.85rem; font-weight:600; cursor:pointer; transition:opacity .2s; }
+    .btn-pdf { background:var(--green); color:#0F172A; }
+    .btn-docx { background:#3B82F6; color:#fff; }
+    .btn-preview { background:var(--yellow); color:#0F172A; }
+    .btn-md { background:var(--surface); border:1px solid var(--border); color:var(--muted); }
+    .btn-plagio { background:#8B5CF6; color:#fff; }
+    .btn-sm:hover { opacity:.85; }
+
+    /* Progress */
+    #progress-section { display:none; margin-top:1.8rem; }
+    .progress-bar-wrap { background:var(--card); border-radius:99px; height:8px; overflow:hidden; margin-bottom:1.2rem; }
+    .progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:99px; width:0%; transition:width .6s ease; }
+    .steps { display:flex; flex-direction:column; gap:.55rem; }
+    .step { display:flex; align-items:center; gap:.7rem; font-size:.88rem; color:var(--muted); padding:.55rem .8rem; border-radius:8px; transition:background .2s,color .2s; }
+    .step.active { background:rgba(99,102,241,.12); color:var(--accent2); }
+    .step.done { color:var(--green); }
+    .step-icon { font-size:1rem; width:22px; text-align:center; }
+    .spinner { width:18px; height:18px; border:2.5px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Result */
+    #result-section { display:none; margin-top:1.8rem; }
+    .result-box { background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.3); border-radius:10px; padding:1.2rem 1.4rem; }
+    .result-meta strong { color:var(--green); font-size:1rem; display:block; margin-bottom:4px; }
+    .result-meta span { color:var(--muted); font-size:.85rem; }
+    .score-badge { display:inline-block; margin-top:.5rem; padding:3px 12px; border-radius:99px; font-size:.8rem; font-weight:700; }
+    .score-high { background:rgba(34,197,94,.15); color:var(--green); border:1px solid rgba(34,197,94,.3); }
+    .score-mid  { background:rgba(245,158,11,.15); color:var(--yellow); border:1px solid rgba(245,158,11,.3); }
+    .score-low  { background:rgba(239,68,68,.15);  color:var(--red);    border:1px solid rgba(239,68,68,.3); }
+
+    /* Plagiarism modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; align-items:center; justify-content:center; padding:1rem; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); width:100%; max-width:820px; max-height:90vh; display:flex; flex-direction:column; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1rem 1.4rem; border-bottom:1px solid var(--border); }
+    .modal-header h3 { font-size:1rem; color:var(--text); }
+    .modal-close { background:none; border:none; color:var(--muted); font-size:1.4rem; cursor:pointer; }
+    .modal-close:hover { color:var(--text); }
+    .modal-body { overflow-y:auto; padding:1.4rem; flex:1; }
+
+    /* Paper preview */
+    .paper-section { margin-bottom:1.6rem; }
+    .paper-section h2 { font-size:1rem; color:var(--accent2); border-bottom:1px solid var(--border); padding-bottom:6px; margin-bottom:10px; }
+    .paper-section p { font-size:.9rem; color:#CBD5E1; line-height:1.7; margin-bottom:8px; }
+    .ref-list { font-size:.82rem; color:var(--muted); line-height:1.8; }
+
+    /* Plagiarism report */
+    .score-circle { text-align:center; margin-bottom:1.5rem; }
+    .score-number { font-size:4rem; font-weight:800; }
+    .score-label { font-size:.9rem; color:var(--muted); margin-top:.2rem; }
+    .report-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+    .report-card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:1rem; }
+    .report-card h4 { font-size:.8rem; text-transform:uppercase; color:var(--muted); margin-bottom:.6rem; letter-spacing:.05em; }
+    .report-card ul { list-style:none; }
+    .report-card ul li { font-size:.85rem; color:var(--text); padding:.25rem 0; padding-left:1rem; position:relative; }
+    .report-card ul li::before { content:"•"; position:absolute; left:0; color:var(--accent2); }
+    .recommendation { background:rgba(99,102,241,.08); border:1px solid rgba(99,102,241,.2); border-radius:10px; padding:1rem 1.2rem; font-size:.9rem; color:#CBD5E1; line-height:1.6; }
+
+    /* History */
+    #history-section { display:none; margin-top:2rem; width:100%; max-width:740px; }
+    #history-section h3 { font-size:.85rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.7rem; }
+    .history-list { display:flex; flex-direction:column; gap:.5rem; }
+    .history-item { background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:.65rem 1rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; cursor:pointer; transition:border-color .2s; }
+    .history-item:hover { border-color:var(--accent); }
+    .history-topic { font-size:.88rem; color:var(--text); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .history-time { font-size:.75rem; color:var(--muted); white-space:nowrap; }
+    .history-del { background:none; border:none; color:var(--muted); cursor:pointer; font-size:1rem; }
+    .history-del:hover { color:var(--red); }
+
+    /* Error */
+    #error-section { display:none; margin-top:1.2rem; }
+    .error-box { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.3); border-radius:10px; padding:1rem 1.2rem; color:#FCA5A5; font-size:.9rem; }
+    .error-box strong { display:block; margin-bottom:4px; color:var(--red); }
+
+    .agents-strip { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:2rem; max-width:740px; width:100%; justify-content:center; }
+    .agent-chip { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.4rem .75rem; font-size:.75rem; color:var(--muted); text-align:center; }
+    .agent-chip span { display:block; color:var(--accent2); font-weight:600; }
+    footer { margin-top:3rem; color:var(--muted); font-size:.78rem; text-align:center; }
+    @media(max-width:500px){.logo{font-size:2rem;}.card{padding:1.4rem;}.report-grid{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Research<span>Pilot</span> <span style="font-weight:800">AI</span></div>
+  <p>Multi-Agent AI Research Paper Generation System — LangGraph Edition</p>
+  <div class="badge-row">
+    <span class="badge">9 AI Agents</span>
+    <span class="badge">LangGraph DAG</span>
+    <span class="badge">Plagiarism Check</span>
+    <span class="badge">Topic Suggestions</span>
+    <span class="badge">PDF+DOCX+MD</span>
+  </div>
+</header>
+
+<div class="card">
+  <!-- Trending Topics -->
+  <div id="suggestions-wrap">
+    <label>🔥 Trending Research Topics — click to use</label>
+    <div class="topics-grid" id="topics-grid">
+      <span class="topics-loading">Loading suggestions...</span>
+    </div>
+  </div>
+
+  <label class="main-label" for="topic-input">Or type your own topic</label>
+  <textarea id="topic-input" placeholder="e.g. Impact of Artificial Intelligence in Healthcare" rows="3"></textarea>
+  <button class="btn" id="generate-btn" onclick="startGeneration()">
+    <div class="spinner" id="btn-spinner"></div>
+    <span id="btn-text">⚡ Generate Research Paper</span>
+  </button>
+
+  <!-- Progress -->
+  <div id="progress-section">
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    <div class="steps" id="steps-list"></div>
+  </div>
+
+  <!-- Result -->
+  <div id="result-section">
+    <div class="result-box">
+      <div class="result-meta">
+        <strong>✅ Paper Ready!</strong>
+        <span id="paper-meta"></span>
+        <span id="score-display"></span>
+      </div>
+      <div class="action-btns">
+        <button class="btn-sm btn-pdf"     onclick="downloadPDF()">⬇ PDF</button>
+        <button class="btn-sm btn-docx"    onclick="downloadDOCX()">📄 DOCX</button>
+        <button class="btn-sm btn-preview" onclick="openPreview()">👁 Preview</button>
+        <button class="btn-sm btn-md"      onclick="downloadMarkdown()">📝 Markdown</button>
+        <button class="btn-sm btn-plagio"  onclick="openPlagiarism()">🔬 Originality</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-section">
+    <div class="error-box"><strong>⚠ Error</strong><span id="error-msg"></span></div>
+  </div>
+</div>
+
+<!-- History -->
+<div id="history-section">
+  <h3>📋 Recent Topics</h3>
+  <div class="history-list" id="history-list"></div>
+</div>
+
+<!-- Agent chips -->
+<div class="agents-strip">
+  <div class="agent-chip"><span>Agent 1</span>Validator</div>
+  <div class="agent-chip"><span>Agent 2</span>Planner</div>
+  <div class="agent-chip"><span>Agent 3</span>Researcher</div>
+  <div class="agent-chip"><span>Agent 4</span>Analyst</div>
+  <div class="agent-chip"><span>Agent 5</span>Writer</div>
+  <div class="agent-chip"><span>Agent 6</span>Reviewer</div>
+  <div class="agent-chip"><span>Agent 7</span>Citations</div>
+  <div class="agent-chip"><span>Agent 8</span>PDF Builder</div>
+  <div class="agent-chip"><span>Agent 9</span>Plagiarism</div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="preview-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-preview-title">Paper Preview</h3>
+      <button class="modal-close" onclick="closeModal('preview-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="preview-body"></div>
+  </div>
+</div>
+
+<!-- Plagiarism Modal -->
+<div class="modal-overlay" id="plagio-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>🔬 Originality Report</h3>
+      <button class="modal-close" onclick="closeModal('plagio-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="plagio-body"></div>
+  </div>
+</div>
+
+<footer>ResearchPilot AI v4 &nbsp;·&nbsp; LangGraph + 9 Agents + Plagiarism Check</footer>
+
+<script>
+  const API_BASE = "https://timid-rasping-outlet.ngrok-free.dev";
+
+  const STEPS = [
+    { label:"Validating topic...",      icon:"🔍" },
+    { label:"Planning research...",     icon:"🗺️" },
+    { label:"Searching sources...",     icon:"🌐" },
+    { label:"Analyzing information...", icon:"🧠" },
+    { label:"Writing paper...",         icon:"✍️" },
+    { label:"Reviewing paper...",       icon:"🔬" },
+    { label:"Generating citations...",  icon:"📚" },
+    { label:"Creating PDF...",          icon:"📄" },
+    { label:"Checking originality...",  icon:"🛡️" },
+    { label:"Completed.",               icon:"✅" },
+  ];
+
+  let pdfBlob=null, pdfFilename="ResearchPaper.pdf", paperPreview=null, plagiarismData=null;
+
+  // ── Trending Topics ────────────────────────────────────────────────────────
+  async function loadTopics(){
+    try {
+      const res = await fetch(`${API_BASE}/trending-topics`);
+      const data = await res.json();
+      const grid = document.getElementById("topics-grid");
+      if(!data.topics?.length){ grid.innerHTML='<span class="topics-loading">No suggestions available.</span>'; return; }
+      grid.innerHTML = data.topics.map(t=>`
+        <div class="topic-pill" onclick="useTopic('${t.title.replace(/'/g,"\\'")}')">
+          ${t.title}
+          <span class="domain">${t.domain}</span>
+        </div>
+      `).join("");
+    } catch {
+      document.getElementById("topics-grid").innerHTML='<span class="topics-loading">Could not load suggestions.</span>';
+    }
+  }
+
+  function useTopic(t){ document.getElementById("topic-input").value=t; document.getElementById("topic-input").focus(); }
+
+  // ── History ────────────────────────────────────────────────────────────────
+  const HK="researchpilot_history";
+  function getHistory(){ try{ return JSON.parse(localStorage.getItem(HK)||"[]"); }catch{ return []; } }
+  function saveToHistory(topic){
+    let h=getHistory().filter(i=>i.topic!==topic);
+    h.unshift({topic,time:new Date().toLocaleString()});
+    if(h.length>5) h=h.slice(0,5);
+    localStorage.setItem(HK,JSON.stringify(h));
+    renderHistory();
+  }
+  function deleteHistory(i){ let h=getHistory(); h.splice(i,1); localStorage.setItem(HK,JSON.stringify(h)); renderHistory(); }
+  function renderHistory(){
+    const h=getHistory(), sec=document.getElementById("history-section"), list=document.getElementById("history-list");
+    if(!h.length){ sec.style.display="none"; return; }
+    sec.style.display="block";
+    list.innerHTML=h.map((item,i)=>`
+      <div class="history-item" onclick="useTopic('${item.topic.replace(/'/g,"\\'")}')">
+        <span class="history-topic">📄 ${item.topic}</span>
+        <span class="history-time">${item.time}</span>
+        <button class="history-del" onclick="event.stopPropagation();deleteHistory(${i})">✕</button>
+      </div>`).join("");
+  }
+
+  // ── Progress ───────────────────────────────────────────────────────────────
+  function setProgress(idx){
+    document.getElementById("progress-fill").style.width=Math.round(((idx+1)/STEPS.length)*100)+"%";
+    document.querySelectorAll(".step").forEach((el,i)=>{
+      el.classList.remove("active","done");
+      if(i<idx) el.classList.add("done");
+      if(i===idx) el.classList.add("active");
+    });
+  }
+  function buildStepsList(){
+    const c=document.getElementById("steps-list"); c.innerHTML="";
+    STEPS.forEach((s,i)=>{ const d=document.createElement("div"); d.className="step"; d.id=`step-${i}`; d.innerHTML=`<span class="step-icon">${s.icon}</span><span>${s.label}</span>`; c.appendChild(d); });
+  }
+
+  // ── Generate ───────────────────────────────────────────────────────────────
+  async function startGeneration(){
+    const topic=document.getElementById("topic-input").value.trim();
+    if(!topic){ alert("Please enter a research topic."); return; }
+    pdfBlob=null; paperPreview=null; plagiarismData=null;
+    document.getElementById("result-section").style.display="none";
+    document.getElementById("error-section").style.display="none";
+    buildStepsList();
+    document.getElementById("progress-section").style.display="block";
+    document.getElementById("generate-btn").disabled=true;
+    document.getElementById("btn-spinner").style.display="block";
+    document.getElementById("btn-text").textContent="Generating…";
+
+    let idx=0; setProgress(0);
+    const timer=setInterval(()=>{ if(idx<STEPS.length-2){idx++;setProgress(idx);} },7000);
+
+    try {
+      const res=await fetch(`${API_BASE}/generate-paper`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic})});
+      clearInterval(timer); setProgress(STEPS.length-1);
+      if(!res.ok){ const e=await res.json().catch(()=>({detail:"Unknown error"})); throw new Error(e.detail||`HTTP ${res.status}`); }
+
+      const words=res.headers.get("X-Word-Count")||"–";
+      const refs=res.headers.get("X-Reference-Count")||"–";
+      const vTopic=res.headers.get("X-Validated-Topic")||topic;
+      const oScore=res.headers.get("X-Originality-Score")||"–";
+      const disp=res.headers.get("Content-Disposition")||"";
+      const m=disp.match(/filename="(.+?)"/); if(m) pdfFilename=m[1];
+      pdfBlob=await res.blob();
+
+      document.getElementById("paper-meta").textContent=`~${words} words · ${refs} references · "${vTopic}"`;
+
+      // Score badge
+      const sc=parseInt(oScore);
+      let badgeClass="score-mid", label="Moderate Originality";
+      if(sc>=85){badgeClass="score-high";label="Highly Original";}
+      else if(sc<50){badgeClass="score-low";label="Low Originality";}
+      document.getElementById("score-display").innerHTML=
+        isNaN(sc)?"":`<span class="score-badge ${badgeClass}">🛡 ${oScore}% — ${label}</span>`;
+
+      document.getElementById("result-section").style.display="block";
+      saveToHistory(topic);
+    } catch(err){
+      clearInterval(timer);
+      document.getElementById("error-msg").textContent=err.message;
+      document.getElementById("error-section").style.display="block";
+    } finally {
+      document.getElementById("generate-btn").disabled=false;
+      document.getElementById("btn-spinner").style.display="none";
+      document.getElementById("btn-text").textContent="⚡ Generate Research Paper";
+    }
+  }
+
+  // ── Downloads ──────────────────────────────────────────────────────────────
+  function downloadPDF(){ if(!pdfBlob)return; const u=URL.createObjectURL(pdfBlob),a=document.createElement("a"); a.href=u;a.download=pdfFilename;a.click();URL.revokeObjectURL(u); }
+
+  async function downloadDOCX(){
+    try{ const r=await fetch(`${API_BASE}/download-docx`); if(!r.ok)throw new Error("Generate a paper first."); const b=await r.blob(),d=r.headers.get("Content-Disposition")||"",m=d.match(/filename="(.+?)"/),u=URL.createObjectURL(b),a=document.createElement("a"); a.href=u;a.download=m?m[1]:"paper.docx";a.click();URL.revokeObjectURL(u); }
+    catch(e){ alert(e.message); }
+  }
+
+  async function downloadMarkdown(){
+    try{
+      if(!paperPreview){ const r=await fetch(`${API_BASE}/preview`); if(!r.ok)throw new Error("No paper yet."); paperPreview=await r.json(); }
+      const md=`# ${paperPreview.topic}\n\n`+paperPreview.paper_text+"\n\n## References\n\n"+paperPreview.references.join("\n");
+      const b=new Blob([md],{type:"text/markdown"}),a=document.createElement("a"); a.href=URL.createObjectURL(b);a.download="ResearchPaper.md";a.click();
+    }catch(e){alert(e.message);}
+  }
+
+  // ── Preview Modal ──────────────────────────────────────────────────────────
+  async function openPreview(){
+    try{ if(!paperPreview){const r=await fetch(`${API_BASE}/preview`);if(!r.ok)throw new Error("No paper.");paperPreview=await r.json();} }
+    catch(e){alert(e.message);return;}
+    document.getElementById("modal-preview-title").textContent=paperPreview.topic;
+    const body=document.getElementById("preview-body"); body.innerHTML="";
+    let heading=null,lines=[];
+    function flush(){
+      if(!lines.length)return;
+      const sec=document.createElement("div"); sec.className="paper-section";
+      if(heading){const h=document.createElement("h2");h.textContent=heading;sec.appendChild(h);}
+      lines.forEach(l=>{if(l.trim()){const p=document.createElement("p");p.textContent=l;sec.appendChild(p);}});
+      body.appendChild(sec); lines=[];
+    }
+    paperPreview.paper_text.split("\n").forEach(l=>{
+      if(l.startsWith("## ")){flush();heading=l.replace("## ","").trim();}else{lines.push(l);}
+    }); flush();
+    if(paperPreview.references?.length){
+      const sec=document.createElement("div");sec.className="paper-section";
+      const h=document.createElement("h2");h.textContent="References";sec.appendChild(h);
+      const d=document.createElement("div");d.className="ref-list";
+      d.innerHTML=paperPreview.references.map(r=>`<div>${r}</div>`).join("");
+      sec.appendChild(d);body.appendChild(sec);
+    }
+    openModal("preview-modal");
+  }
+
+  // ── Plagiarism Modal ───────────────────────────────────────────────────────
+  async function openPlagiarism(){
+    try{ if(!plagiarismData){const r=await fetch(`${API_BASE}/plagiarism-report`);if(!r.ok)throw new Error("No report.");plagiarismData=await r.json();} }
+    catch(e){alert(e.message);return;}
+    const p=plagiarismData;
+    const sc=p.originality_score||0;
+    let color=sc>=85?"var(--green)":sc>=50?"var(--yellow)":"var(--red)";
+    document.getElementById("plagio-body").innerHTML=`
+      <div class="score-circle">
+        <div class="score-number" style="color:${color}">${sc}%</div>
+        <div class="score-label">${p.grade||""} &nbsp;·&nbsp; Citation Coverage: ${p.citation_coverage||"N/A"}</div>
+      </div>
+      <div class="report-grid">
+        <div class="report-card">
+          <h4>⚠ Issues Found</h4>
+          <ul>${(p.issues||[]).map(i=>`<li>${i}</li>`).join("")}</ul>
+        </div>
+        <div class="report-card">
+          <h4>✅ Strengths</h4>
+          <ul>${(p.strengths||[]).map(s=>`<li>${s}</li>`).join("")}</ul>
+        </div>
+      </div>
+      <div class="recommendation">💡 <strong>Recommendation:</strong> ${p.recommendation||"N/A"}</div>
+    `;
+    openModal("plagio-modal");
+  }
+
+  function openModal(id){ document.getElementById(id).classList.add("open"); }
+  function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+  document.querySelectorAll(".modal-overlay").forEach(m=>m.addEventListener("click",e=>{if(e.target===m)m.classList.remove("open");}));
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  renderHistory();
+  loadTopics();
+</script>
+</body>
+</html>
